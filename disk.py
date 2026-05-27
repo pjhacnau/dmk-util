@@ -350,7 +350,7 @@ class LSDOS_Disk(OS_Disk):
                             logger.debug("Finding FXDEs")
                         while (ff == 0xfe):
                             fx = self.dir_entry_by_hit(fp)
-                            assert(fx.name + xf.ext == aligned_name)
+                            assert(fx.name + fx.ext == aligned_name)
                             entries.append(fx)
                             ff = fx.ff
                             fp = fx.fp

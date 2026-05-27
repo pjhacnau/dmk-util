@@ -55,7 +55,7 @@ def determine_format(filename):
         f.seek(JV3_Image.HEADER_ARRAY, 0)
         (c,) = struct.unpack('B', f.read(1))
         if (c == 0) or (c == 0xff):
-            return JV3
+           return JV3
 
 
     return NOTSUPP
@@ -86,7 +86,10 @@ class Image(object):
         return 0 if self._geo is None else self._geo.sides
 
 class JV1_Image(Image):
-
+    """
+    Process a JV3 disk image.  Main reference:
+    https://www.tim-mann.org/trs80/dskspec.html
+    """
     SIDES = 1
     TRACKS = 35
     SECTORS_PER_TRACK = 10
@@ -114,7 +117,10 @@ class JV1_Image(Image):
         return self._file.read(JV1_Image.SECTOR_SIZE)
 
 class JV3_Image(Image):
-
+    """
+    Process a JV3 disk image.  Main reference:
+    https://www.tim-mann.org/trs80/dskspec.html
+    """
     SECTOR_HEADERS = 2901
     HEADER_SIZE = 3
     HEADER_ARRAY = SECTOR_HEADERS * HEADER_SIZE
@@ -162,10 +168,10 @@ class JV3_Image(Image):
                                           lastTrack + 1))
     @classmethod
     def _sec_size(cls, hdr, use_f8):
-        '''
+        """
         Calculate sector size based on flags.
         Returns size in bytes: 128, 256, 512, or 1024
-        '''
+        """
         if ((hdr.flags & 0x60) == 0x20) and use_f8: # empty and care
             ibm_sz = (hdr.flags & cls.FLAG_SIZE_MASK) ^ 2
         else:
@@ -174,10 +180,10 @@ class JV3_Image(Image):
         return 128 * pow(2, ibm_sz) if ibm_sz <= 2 else 1024
 
     def read_sector(self, track, sector):
-        '''
+        """
         Read a single sector by track and sector number.
         Returns sector data or None if not found.
-        '''
+        """
         i = 0
         sz = 0
         for h in self._headers:
@@ -198,10 +204,10 @@ class JV3_Image(Image):
             self._file.seek((self.HEADER_ARRAY + 1) + sz, 0)
             return self._file.read(this_sz)
     def read_track(self, track):
-        '''
+        """
         Read all sectors from a specified track.
         Returns concatenated sector data as bytes.
-        '''
+        """
         track_data = bytearray()
 
         # Find all sectors on this track
@@ -219,10 +225,10 @@ class JV3_Image(Image):
         return bytes(track_data) if track_data else None
 
     def get_sector_info(self, track, sector):
-        '''
+        """
         Get detailed information about a specific sector.
         Returns dictionary with sector metadata or None if not found.
-        '''
+        """
         for i, h in enumerate(self._headers):
             if (h.track == track) and (h.sector == sector):
                 return {
@@ -240,9 +246,9 @@ class JV3_Image(Image):
         return None
 
     def get_geometry(self):
-        '''
+        """
         Return detailed geometry information.
-        '''
+        """
         # Count actual sectors per track (on side 0)
         sectors_per_track = 0
         for h in self._headers:
@@ -263,10 +269,10 @@ class JV3_Image(Image):
         }
 
     def validate_header(self):
-        '''
+        """
         Validate JV3 image integrity.
         Returns dictionary with validation results.
-        '''
+        """
         # Check for reasonable track/sector values
         valid_tracks = all(h.track < 256 for h in self._headers if h.flags != 0xff)
         valid_sectors = all(h.sector < 256 for h in self._headers if h.flags != 0xff)
@@ -287,10 +293,10 @@ class JV3_Image(Image):
         }
 
     def list_sectors(self, track=None):
-        '''
+        """
         List all sectors, optionally filtered by track.
         Returns list of sector information dictionaries.
-        '''
+        """
         sectors_list = []
 
         for h in self._headers:
@@ -312,10 +318,10 @@ class JV3_Image(Image):
         return sorted(sectors_list, key=lambda x: (x['track'], x['side'], x['sector']))
 
     def get_sector_data_offset(self, track, sector):
-        '''
+        """
         Get the file offset where sector data begins.
         Useful for debugging or direct file access.
-        '''
+        """
         offset = 0
         for h in self._headers:
             if (h.track == track) and (h.sector == sector):
@@ -326,7 +332,10 @@ class JV3_Image(Image):
         return None
 
 class DMK_Image(Image):
-
+    """
+    Process the contents of a _virtual_ DMK image.  Main reference:
+http://cpmarchives.classiccmp.org//trs80/mirrors/www.discover-net.net/~dmkeil/trs80/trstech.htm#Technical-DMK-disks
+    """
     VDISK_HDR = 16
     IDAM_SIZE = 128
     Header = namedtuple('Header', 'wp tracks tracklen flags fmt')
@@ -360,10 +369,10 @@ class DMK_Image(Image):
                                           self._ntracks))
 
     def _parse_idam_list(self, track_data):
-        '''
+        """
         Parse the IDAM (Index Data Address Mark) list from track header.
         Returns list of IDAM offsets and sector information.
-        '''
+        """
         idam_list = []
         idam_bytes = struct.unpack('<' + 'H' * int(self.IDAM_SIZE / 2),
                                    track_data[:self.IDAM_SIZE])
@@ -385,10 +394,10 @@ class DMK_Image(Image):
         return idam_list
 
     def _parse_sector_header(self, track_data, idam_offset):
-        '''
+        """
         Parse sector header information at given offset.
         Returns dictionary with track, sector, size, and CRC info.
-        '''
+        """
         if idam_offset + 7 > len(track_data):
             return None
 
@@ -415,10 +424,10 @@ class DMK_Image(Image):
             return None
 
     def _find_sector_data_offset(self, track_data, idam_list, target_sector):
-        '''
+        """
         Find the data offset for a specific sector.
         Returns offset and size, or None if not found.
-        '''
+        """
         logger.debug("find_sector_data_offset()")
 
         for i, idam in enumerate(idam_list):
@@ -439,10 +448,10 @@ class DMK_Image(Image):
         return None
 
     def read_track(self, tracknum, raw=False):
-        '''
+        """
         Read raw track data from specified track number.
         If raw=False, returns track data without IDAM list.
-        '''
+        """
         logger.info('read_track({}, {})'.format(tracknum, raw))
         loc = self._trackstart + (tracknum * self._tracklen)
         self._file.seek(loc, 0)
@@ -593,10 +602,10 @@ class DMK_Image(Image):
         }
 
     def validate_header(self):
-        '''
+        """
         Validate DMK image header and structure.
         Returns dictionary with validation results.
-        '''
+        """
         checks = {
             'valid_write_protect': self._wp in [0x00, 0xff],
             'tracks_reasonable': 0 < self._ntracks <= 256,
@@ -682,6 +691,12 @@ class DMK_Image(Image):
         return structure
 
 class Hard_Image(Image):
+    """
+    Process an image of a "Matthew Reed Hard disk".  Unline the
+    other images, the contents here were worked out from the XTRS source,
+    starting with
+    https://github.com/TimothyPMann/xtrs/blob/master/reed.h
+    """
     Header = namedtuple('Header',
                         'id1 id2 ver chksum blks mb4 media flag1 flag2 flag3 crtr dfmt mm dd yy res1 dparm cyl sec gran dcyl label res2')
     HDRSTR = '<BBBBBBBBBBBBBBB12sBBBBB32s192s'
@@ -700,10 +715,10 @@ class Hard_Image(Image):
         self._track_offset = self.HLEN
 
     def read_sector(self, cylinder, sector):
-        '''
+        """
         Read a single sector from hard disk image.
         Parameters correspond to CHS (Cylinder-Head-Sector) addressing.
-        '''
+        """
         if cylinder >= self._header.cyl:
             return None
         if sector > self._header.sec:
@@ -718,12 +733,12 @@ class Hard_Image(Image):
         return self._file.read(self._sector_size)
 
     def read_track(self, cylinder):
-        '''
+        """
         Read all sectors from a track (cylinder).
-        '''
+        """
         track_data = bytearray()
         for sector in range(self._header.sec):
-            sector_data = self.read_sector(cylinder, 0, sector)
+            sector_data = self.read_sector(cylinder, sector)
             if sector_data is None:
                 return None
             track_data.extend(sector_data)
@@ -731,9 +746,9 @@ class Hard_Image(Image):
         return bytes(track_data)
 
     def get_geometry(self):
-        '''
+        """
         Return detailed geometry information from header.
-        '''
+        """
         return {
             'cylinders': self._header.cyl,
             'sectors_per_track': self._header.sec,
@@ -744,9 +759,9 @@ class Hard_Image(Image):
         }
 
     def validate_header(self):
-        '''
+        """
         Validate the hard disk image header.
-        '''
+        """
         checks = {
             'magic_valid': self._header.id1 == 0x56 and self._header.id2 == 0xcb,
             'has_cylinders': self._header.cyl > 0,
