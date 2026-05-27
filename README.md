@@ -12,8 +12,17 @@ image formats:
  LDOS/LSDOS disk images are currently supported.  TRSDOS 2.3 and 1.3 (Model
  III) will be supported "soon"
  
- `./dmk-util.py -h` for full details
+ # Running
  
+ ## Without building:
+  `src/dmk_util.py -h` for full details
+ 
+ ## Building
+ To run as an "installed" package:
+`python3 -m build`
+`pip3 install dist/dmk_util-*.whl`
+`dmk-util -h` for details
+
  # Why?
  There are lots of existing utilities which can handle this stuff, as 
  shown by a quick read of
