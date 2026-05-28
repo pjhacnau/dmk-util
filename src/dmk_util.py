@@ -42,8 +42,7 @@ def main():
 
     image = create_image(args.file)
 
-    if args.verbose is True:
-        print("Format is {}".format(image.format()))
+    logger.info("Format is {}".format(image.format()))
 
     if args.image is False:
         #right now only one OS supported
@@ -51,9 +50,8 @@ def main():
 
         osd.sanityCheck()
 
-        if args.verbose is True:
-            print("{} {}.{}".format(osd.type, osd.version()[0], osd.version()[1]))
-            print(osd.configAsString())
+        logger.info("{} {}.{}".format(osd.type, osd.version()[0], osd.version()[1]))
+        logger.info(osd.configAsString())
 
         if args.directory is True:
             print("FILE\t\tPROT")
