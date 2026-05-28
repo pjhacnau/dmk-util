@@ -87,8 +87,16 @@ class Image(object):
 
 class JV1_Image(Image):
     """
-    Process a JV3 disk image.  Main reference:
+    Process a JV1 disk image.  Main reference:
     https://www.tim-mann.org/trs80/dskspec.html
+
+    The JV1 format is quite basic:
+
+      - One side
+      - 35 tracks
+      - 10 sectors per track, each sector 256 bytes
+
+    Essentially a Model 1 floppy disk and nothing else.
     """
     SIDES = 1
     TRACKS = 35
@@ -120,6 +128,17 @@ class JV3_Image(Image):
     """
     Process a JV3 disk image.  Main reference:
     https://www.tim-mann.org/trs80/dskspec.html
+
+    JV3 is so-named as it attempts to specifically cover the Model III (and 4
+    by extension)
+
+    It has two blocks of sectors with an array of headers followed by the
+    associated data.  A single char for the write protect flag sits between
+    the headers and data in the first block (an equivalent padding char sits
+    in the second block)It is focused around the operation of the Western
+    Digital WD1791/3 floppy controller, and models single and double density
+    sectors.
+
     """
     SECTOR_HEADERS = 2901
     HEADER_SIZE = 3
@@ -136,6 +155,9 @@ class JV3_Image(Image):
 
     @classmethod
     def iToO(cls, index):
+        """
+        Convert header record index to byte offset
+        """
         return index * JV3_Image.HEADER_SIZE
 
     def __init__(self, f, use_f8 = False):
