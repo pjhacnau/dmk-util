@@ -1,5 +1,25 @@
 #!/usr/bin/python3
 
+"""
+A series of classes to process disk images containing data formatted with
+a specific TRS-80 Operating System.
+
+   Copyright 2025 Peter Howard <pjh@northern-ridge.com.au>
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+"""
+
 from collections import namedtuple
 import logging
 import string
@@ -65,12 +85,13 @@ class OS_Disk(object):
 
 
 class LSDOS_Disk(OS_Disk):
-    '''
-    Covers LDOS and LSDOS formats. An LDOS disk could be for the Model I
-    or Model III.  LSDOS is only Model 4.
+    """
+    Covers LDOS and LSDOS formats. An LDOS disk could be for the Model I or
+    Model III.  LSDOS is only Model 4.
 
-    Information from "Programmers Guide to LDOS 6"
-    '''
+    Information from "Programmers Guide to LDOS/TRSDOS 6" This can be found at
+    https://www.tim-mann.org/misosys.html
+    """
 
     class Direntry(object):
         """
