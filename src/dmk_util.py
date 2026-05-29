@@ -63,7 +63,7 @@ def main():
 
     logger.info("Format is {}".format(image.format()))
 
-    if args.image is False:
+    if not args.image:
         #right now only one OS supported
         osd = LSDOS_Disk(image, args.verbose)
 
