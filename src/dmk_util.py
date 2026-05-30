@@ -29,7 +29,10 @@ logger = logging.getLogger('dmk-util')
 
 def main():
     parser = argparse.ArgumentParser(description="DSK file processing")
-    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('-v', '--verbose',
+                        action='count',
+                        default=0,
+                        help='Show more information; max when specified twice')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-i',
                        '--image',
@@ -54,8 +57,10 @@ def main():
 
     args = parser.parse_args()
 
-    if args.verbose:
+    if args.verbose > 1:
         logging.basicConfig(level=logging.DEBUG)
+    elif args.verbose == 1:
+        logging.basicConfig(level=logging.INFO)
     else:
         logging.basicConfig(level=logging.WARNING)
 
@@ -90,7 +95,7 @@ def main():
                     for rn in range(fl.records()):
                         ofl.write(fl.read(rn))
             else:
-                print("File {} not found".format(args.exfile))
+                logger.error("File {} not found".format(args.exfile))
     else:
         if args.track != -1:
             print("Extract track {}".format(args.track))
