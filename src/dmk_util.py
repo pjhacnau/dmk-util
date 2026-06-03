@@ -27,7 +27,7 @@ from disk import LSDOS_Disk
 
 logger = logging.getLogger('dmk-util')
 
-def main():
+def get_args():
     parser = argparse.ArgumentParser(description="DSK file processing")
     parser.add_argument('-v', '--verbose',
                         action='count',
@@ -54,8 +54,10 @@ def main():
                         default=-1,
                         help='Dump track (only valid with --image)')
     parser.add_argument('file', metavar='IMAGE', help='Disk Image file')
+    return parser.parse_args()
 
-    args = parser.parse_args()
+def main():
+    args = get_args()
 
     if args.verbose > 1:
         logging.basicConfig(level=logging.DEBUG)

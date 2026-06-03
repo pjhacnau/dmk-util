@@ -400,7 +400,6 @@ class LSDOS_Disk(OS_Disk):
                 f = self.Direntry(sec_dat[offset:offset +
                                           self.Direntry.entry_len])
                 if self.Direntry.FPDE in f.attr:
-                    print(f.name)
                     if f.name.find(' ') != -1:
                         name = f.name[:f.name.find(' ')]
                     else:
