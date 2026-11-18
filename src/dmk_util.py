@@ -23,7 +23,7 @@ import argparse
 import logging
 
 from image import create_image
-from disk import LSDOS_Disk
+from disk import DiskFormatError, LSDOS_Disk
 
 logger = logging.getLogger('dmk-util')
 
@@ -33,10 +33,6 @@ def get_args():
                         action='count',
                         default=0,
                         help='Show more information; max when specified twice')
-    parser.add_argument('-f',
-                        '--force',
-                        action='store_true',
-                        help='Force - keep going in the face of warning / errors')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-i',
                        '--image',
@@ -76,7 +72,11 @@ def main():
 
     if not args.image:
         #right now only one OS supported
-        osd = LSDOS_Disk(image, args.verbose, args.force)
+        try:
+            osd = LSDOS_Disk(image, args.verbose)
+        except DiskFormatError as exc:
+            logger.error("%s", exc)
+            return 2
 
         osd.sanityCheck()
 
@@ -108,4 +108,4 @@ def main():
             print(image.read_track(args.track, True).hex())
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

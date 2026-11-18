@@ -383,9 +383,9 @@ http://cpmarchives.classiccmp.org//trs80/mirrors/www.discover-net.net/~dmkeil/tr
 
     # Flag definitions
     FLAG_SINGLE_SIDED = 0x10
-    FLAG_DOUBLE_DENSITY = 0x40
+    FLAG_SINGLE_DENSITY = 0x40
     FLAG_IGNORE_DENSITY = 0x80
-    FLAG_SINGLE_DENSITY = 0x00
+    FLAG_DOUBLE_DENSITY = 0x00
 
     @classmethod
     def read_header(cls, f) -> Header:
@@ -399,14 +399,39 @@ http://cpmarchives.classiccmp.org//trs80/mirrors/www.discover-net.net/~dmkeil/tr
         self._wp = hdr.wp
         self._ntracks = hdr.tracks
         self._tracklen = hdr.tracklen
-        self._sides = 1 if (hdr.flags & 0x10) else 2
-        self._sden = (hdr.flags & 0x40) != 0
+        self._sides = 1 if (hdr.flags & self.FLAG_SINGLE_SIDED) else 2
+        self._sden = (hdr.flags & self.FLAG_SINGLE_DENSITY) != 0
         self._ignden = (hdr.flags & 0x80) != 0
+        self._sectors_per_side = 10 if self._sden else 18
         self._curtrack = self._curside = -1
         self._trackstart = 16
         self._trackheader_sz = 0x80
         Image._setGeometry(self, Geometry(self._sides,
                                           self._ntracks))
+
+    def _sector_location(self, tracknum, sector):
+        """
+        Convert logical cylinder/sector addressing to a DMK track record.
+
+        Double-sided DMK images store side 0 and side 1 consecutively for
+        each cylinder, while the disk formats handled by this utility expose
+        both sides as one logical track.
+        """
+        if self._sides == 1:
+            return tracknum, sector
+
+        side, physical_sector = divmod(sector, self._sectors_per_side)
+        return (tracknum * self._sides) + side, physical_sector
+
+    def _read_track(self, tracknum):
+        loc = self._trackstart + (tracknum * self._tracklen)
+        self._file.seek(loc, 0)
+        track_data = self._file.read(self._tracklen)
+
+        if len(track_data) != self._tracklen:
+            raise FormatError("Expected {} bytes, got {}".format(self._tracklen, len(track_data)))
+
+        return track_data
 
     def _parse_idam_list(self, track_data):
         """
@@ -493,12 +518,7 @@ http://cpmarchives.classiccmp.org//trs80/mirrors/www.discover-net.net/~dmkeil/tr
         If raw=False, returns track data without IDAM list.
         """
         logger.info('read_track({}, {})'.format(tracknum, raw))
-        loc = self._trackstart + (tracknum * self._tracklen)
-        self._file.seek(loc, 0)
-        track_data = self._file.read(self._tracklen)
-
-        if len(track_data) != self._tracklen:
-            raise FormatError("Expected {} bytes, got {}".format(self._tracklen, len(track_data)))
+        track_data = self._read_track(tracknum * self._sides)
 
         if raw:
             return track_data
@@ -534,13 +554,14 @@ http://cpmarchives.classiccmp.org//trs80/mirrors/www.discover-net.net/~dmkeil/tr
         Returns sector data or None if not found.
         """
         logger.debug("read_sector({}, {})".format(tracknum, sector))
-        track_data = self.read_track(tracknum, raw=True)
+        physical_track, physical_sector = self._sector_location(tracknum, sector)
+        track_data = self._read_track(physical_track)
         if track_data is None:
             return None
 
         idam_list = self._parse_idam_list(track_data)
         logger.debug("IDAM list has {} entries".format(len(idam_list)))
-        result = self._find_sector_data_offset(track_data, idam_list, sector)
+        result = self._find_sector_data_offset(track_data, idam_list, physical_sector)
 
         if result is None:
             return None
@@ -633,7 +654,7 @@ http://cpmarchives.classiccmp.org//trs80/mirrors/www.discover-net.net/~dmkeil/tr
             'track_length': self._tracklen,
             'sectors_per_track': sectors_per_track,
             'sector_size': 256,  # Common size
-            'density': 'Double' if self._sden else 'Single',
+            'density': 'Single' if self._sden else 'Double',
             'write_protected': self._wp,
             'ignore_density': self._ignden,
             'header_size': self.VDISK_HDR,
@@ -654,8 +675,8 @@ http://cpmarchives.classiccmp.org//trs80/mirrors/www.discover-net.net/~dmkeil/tr
             'write_protected': self._wp,
             'single_sided': self._sides == 1,
             'double_sided': self._sides == 2,
-            'double_density': self._sden,
-            'single_density': not self._sden
+            'double_density': not self._sden,
+            'single_density': self._sden
         }
         return checks
 
@@ -713,7 +734,7 @@ http://cpmarchives.classiccmp.org//trs80/mirrors/www.discover-net.net/~dmkeil/tr
                 'write_protected': self._wp,
                 'tracks': self._ntracks,
                 'track_length': self._tracklen,
-                'density': 'Double' if self._sden else 'Single'
+                'density': 'Single' if self._sden else 'Double'
             },
             'tracks': []
         }

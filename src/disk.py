@@ -28,6 +28,10 @@ import sys
 
 logger = logging.getLogger(__name__)
 
+class DiskFormatError(Exception):
+    pass
+
+
 class OS_Disk(object):
 
     Config = namedtuple('Config', ['cyls',
@@ -37,9 +41,8 @@ class OS_Disk(object):
                                    'sides',
                                    'granules'])
 
-    def __init__(self, image, verbose, force):
+    def __init__(self, image, verbose):
         self._image = image
-        self._force = force
         self.verbose = verbose
         self._version = None
 
@@ -64,10 +67,7 @@ class OS_Disk(object):
         '''
         if self._config.sides != self._image.sides:
             print("Num sides mismatch: {} vs {}".format(self._config.sides, self._image.sides))
-            if self._force:
-                self._config_sides = self._image.sides
-            else:
-                sys.exit(-2)
+            sys.exit(-2)
 
     def configAsString(self):
         retval = list()
@@ -275,24 +275,31 @@ class LSDOS_Disk(OS_Disk):
             #deal with offset later
             return self._get_sector(sector)
 
-    def __init__(self, image, verbose, force):
+    def __init__(self, image, verbose):
         """
         Set up the basic configuration for the supplied image.
         Currently assuming a 5&1/4 inch disk to make track+sector
         information easy.
         """
 
-        OS_Disk.__init__(self, image, verbose, force)
+        OS_Disk.__init__(self, image, verbose)
 
         s0 = self._image.read_sector(0, 0)
         (b1, b2, b3) = struct.unpack('BBB253x', s0)
         logger.info("Directory on track {}".format(b3))
         self._dir_track = b3
         ds0 = self._image.read_sector(self._dir_track, 0)
-        (self._version, cyls, self._cfg) = \
+        (version, cyls, self._cfg) = \
                 struct.unpack('BBB', ds0[0xcb:0xce])
+        version_major = version >> 4
+        version_minor = version & 0x0f
+        if version_major < 1 or version_major > 6:
+            raise DiskFormatError(
+                "Image does not contain an LDOS/LSDOS directory "
+                "(invalid OS version 0x{:02x})".format(version))
+
+        self._version = (version_major, version_minor)
         logger.debug("version {} cyls {} cfg 0x{:x}".format(self._version, cyls, self._cfg))
-        self._version = (self._version / 0x10, self._version % 0x10)
         if self._version[0] == 6:
             self.set_type('LSDOS')
         else:
