@@ -7,7 +7,7 @@ sys.pycache_prefix=None
 
 setuptools.setup(
     name='dmk-util',
-    version='0.2',
+    version='0.3',
     package_dir={"": "src"},
     entry_points={
         'console_scripts': [

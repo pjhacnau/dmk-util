@@ -37,8 +37,9 @@ class OS_Disk(object):
                                    'sides',
                                    'granules'])
 
-    def __init__(self, image, verbose):
+    def __init__(self, image, verbose, force):
         self._image = image
+        self._force = force
         self.verbose = verbose
         self._version = None
 
@@ -63,7 +64,10 @@ class OS_Disk(object):
         '''
         if self._config.sides != self._image.sides:
             print("Num sides mismatch: {} vs {}".format(self._config.sides, self._image.sides))
-            sys.exit(-2)
+            if self._force:
+                self._config_sides = self._image.sides
+            else:
+                sys.exit(-2)
 
     def configAsString(self):
         retval = list()
@@ -271,14 +275,14 @@ class LSDOS_Disk(OS_Disk):
             #deal with offset later
             return self._get_sector(sector)
 
-    def __init__(self, image, verbose):
+    def __init__(self, image, verbose, force):
         """
         Set up the basic configuration for the supplied image.
         Currently assuming a 5&1/4 inch disk to make track+sector
         information easy.
         """
 
-        OS_Disk.__init__(self, image, verbose)
+        OS_Disk.__init__(self, image, verbose, force)
 
         s0 = self._image.read_sector(0, 0)
         (b1, b2, b3) = struct.unpack('BBB253x', s0)

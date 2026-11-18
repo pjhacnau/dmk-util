@@ -754,18 +754,26 @@ class Hard_Image(Image):
         self._sector_size = 256
         self._track_offset = self.HLEN
 
+    @property
+    def sectors_per_cylinder(self):
+        """Return the hard-image sector count, including the 256 sentinel."""
+        return self._header.sec or 256
+
     def read_sector(self, cylinder, sector):
         """
         Read a single sector from hard disk image.
         Parameters correspond to CHS (Cylinder-Head-Sector) addressing.
         """
         if cylinder >= self._header.cyl:
+            logger.warning("Attempt to read cylinder {} but only {} available".format(cylinder, self._header.cyl))
             return None
-        if sector > self._header.sec:
+        if sector > self.sectors_per_cylinder:
+            logger.warning("Attempt to read sector {} but only {} available".format(
+                sector, self.sectors_per_cylinder))
             return None
 
         # Calculate offset: (cylinder * sectors_per_cylinder) + sector
-        sectors_per_cylinder = self._header.sec * 1  # heads = 1 for this format
+        sectors_per_cylinder = self.sectors_per_cylinder
         sector_number = (cylinder * sectors_per_cylinder) + sector
         offset = self._track_offset + (sector_number * self._sector_size)
 
@@ -777,7 +785,7 @@ class Hard_Image(Image):
         Read all sectors from a track (cylinder).
         """
         track_data = bytearray()
-        for sector in range(self._header.sec):
+        for sector in range(self.sectors_per_cylinder):
             sector_data = self.read_sector(cylinder, sector)
             if sector_data is None:
                 return None
@@ -791,7 +799,7 @@ class Hard_Image(Image):
         """
         return {
             'cylinders': self._header.cyl,
-            'sectors_per_track': self._header.sec,
+            'sectors_per_track': self.sectors_per_cylinder,
             'sector_size': self._sector_size,
             'block_size': self._header.blks if self._header.blks > 0 else 0x4000,
             'media_type': self._header.media,
@@ -805,10 +813,10 @@ class Hard_Image(Image):
         checks = {
             'magic_valid': self._header.id1 == 0x56 and self._header.id2 == 0xcb,
             'has_cylinders': self._header.cyl > 0,
-            'has_sectors': self._header.sec > 0,
+            'has_sectors': self.sectors_per_cylinder > 0,
             'version_ok': self._header.ver <= 3,
             'reasonable_cylinders': self._header.cyl <= 2048,
-            'reasonable_sectors': self._header.sec <= 256
+            'reasonable_sectors': self.sectors_per_cylinder <= 256
         }
         return checks
 
